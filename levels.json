@@ -1,0 +1,107 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "name": "Easy-Level1",
+      "obstacles": [
+        {"x": 128, "speed": 1.5}
+      ]
+    },
+    {
+      "level": 2,
+      "name": "Easy-Level2",
+      "obstacles": [
+        {"x": 128, "speed": 1.8},
+        {"x": 220, "speed": 1.8}
+      ]
+    },
+    {
+      "level": 3,
+      "name": "Easy-Level3",
+      "obstacles": [
+        {"x": 128, "speed": 2.0},
+        {"x": 240, "speed": 2.0}
+      ]
+    },
+    {
+      "level": 4,
+      "name": "Medium-Level4",
+      "jump_height": 26,
+      "jump_duration": 35,
+      "obstacles": [
+        {"x": 128, "speed": 2.8}
+      ]
+    },
+    {
+      "level": 5,
+      "name": "Medium-Level5",
+      "jump_height": 26,
+      "jump_duration": 35,
+      "obstacles": [
+        {"x": 128, "speed": 2.5, "y_offset": -15},
+        {"x": 210, "speed": 2.5},
+        {"x": 292, "speed": 2.5}
+      ]
+    },
+    {
+      "level": 6,
+      "name": "Medium-Level6",
+      "jump_height": 26,
+      "jump_duration": 35,
+      "obstacles": [
+        {"x": 128, "speed": 2.5, "y_offset": -15},
+        {"x": 220, "speed": 2.5, "y_offset": -15},
+        {"x": 312, "speed": 2.5},
+        {"x": 404, "speed": 2.5}
+      ]
+    },
+    {
+      "level": 7,
+      "name": "Hard-Level7",
+      "jump_height": 24,
+      "jump_duration": 30,
+      "obstacles": [
+        {"x": 128, "speed": 3.0, "jumping": true}
+      ]
+    },
+    {
+      "level": 8,
+      "name": "Hard-Level8",
+      "jump_height": 24,
+      "jump_duration": 30,
+      "obstacles": [
+        {"x": 128, "speed": 3.3},
+        {"x": 220, "speed": 2.5, "jumping": true, "y_offset": -15}
+      ]
+    },
+    {
+      "level": 9,
+      "name": "Hard-Level9",
+      "jump_height": 24,
+      "jump_duration": 30,
+      "obstacles": [
+        {"x": 128, "speed": 3.6, "jumping": true},
+        {"x": 200, "speed": 3.1, "jumping": true},
+        {"x": 260, "speed": 2.5, "jumping": true}
+      ]
+    },
+    {
+      "level": 10,
+      "name": "Final challenge-Level10",
+      "jump_height": 24,
+      "jump_duration": 30,
+      "obstacles": [
+        {"x": 128, "speed": 4.0, "jumping": true},
+        {"x": 185, "speed": 3.4, "jumping": true},
+        {"x": 242, "speed": 2.8, "jumping": true},
+        {"x": 299, "speed": 2.0, "jumping": true}
+      ]
+    }
+  ],
+  "game_settings": {
+    "jump_height": 28,
+    "jump_duration": 40,
+    "ground_y": 50,
+    "player_x": 10
+  }
+}
