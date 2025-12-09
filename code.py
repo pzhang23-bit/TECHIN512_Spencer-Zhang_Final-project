@@ -1,6 +1,5 @@
-# main.py
-
-# main.py
+# code.py
+#Process: intro-words, 2. select mode 3.enter the games.
 import time
 import board
 import digitalio
@@ -12,21 +11,25 @@ import i2cdisplaybus
 import adafruit_displayio_ssd1306
 from rotary_encoder import RotaryEncoder
 from menu_screen import MenuScreen
+from accel_monitor import AccelMonitor
 
-# ===== 设置显示屏 =====
+# Display Setup
 displayio.release_displays()
 i2c = busio.I2C(board.SCL, board.SDA)
 display_bus = i2cdisplaybus.I2CDisplayBus(i2c, device_address=0x3C)
 display = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
 
-# ===== 按钮设置 =====
+# Accelerometer Monitor Setup
+accel_monitor = AccelMonitor(i2c,neopixel_pin=board.D10, num_pixels=8, brightness=0.3)
+
+# Button for menu (D6)
 button = digitalio.DigitalInOut(board.D6)
 button.switch_to_input(pull=digitalio.Pull.UP)
 
-# ===== 旋转编码器设置 =====
+# Rotary Encoder Setup
 encoder = RotaryEncoder(board.D9, board.D8)
 
-# ===== Intro 文本 =====
+# Intro Lines
 intro_lines = [
     "Hello",
     "You awake?",
@@ -36,7 +39,7 @@ intro_lines = [
 ]
 
 def wrap_text(text, max_chars=20):
-    """文本换行函数"""
+    """Text wrapping function"""
     words = text.split(" ")
     lines = []
     current = ""
@@ -53,7 +56,7 @@ def wrap_text(text, max_chars=20):
     return "\n".join(lines)
 
 def show_intro():
-    """显示开场动画"""
+    """Display intro animation"""
     intro_group = displayio.Group()
     display.root_group = intro_group
     intro_label = label.Label(terminalio.FONT, text="", x=10, y=20)
@@ -64,70 +67,80 @@ def show_intro():
     intro_label.text = wrap_text(intro_lines[current_intro])
     
     while True:
+        accel_monitor.update()
+        
         current_state = button.value
         if last_button and not current_state:
             current_intro += 1
             if current_intro >= len(intro_lines):
-                return  # 完成intro
+                return  # Intro complete
             intro_label.text = wrap_text(intro_lines[current_intro])
             time.sleep(0.2)
         last_button = current_state
         time.sleep(0.01)
 
 def show_menu():
-    """显示难度选择菜单"""
+    """Menu selection"""
     menu = MenuScreen(display, encoder, button)
     last_button = False
     
     while True:
+        accel_monitor.update()
+        
         menu.draw()
         result = menu.update()
         current_state = button.value
         
         if result and last_button and not current_state:
             print("Selected difficulty:", result)
-            return result  # 返回选择的难度
+            return result  # Return selected difficulty
         
         last_button = current_state
         time.sleep(0.01)
 
 def start_game(difficulty):
-    """根据难度启动游戏"""
+    """Start game based on difficulty"""
     print(f"Starting game with difficulty: {difficulty}")
     
-    # 根据难度选择不同的levels.json文件或配置
+    # Create D1 button for game
+    game_button = digitalio.DigitalInOut(board.D1)
+    game_button.switch_to_input(pull=digitalio.Pull.UP)
+    
+    # Turn off pickup detection during game (game controls the lights)
+    accel_monitor.clear_override()
+    
+    # Select different configurations based on difficulty
     if difficulty == "Easy":
         from game_easy import run_game
-        run_game(display, button)
+        run_game(display, game_button, accel_monitor)
     
     elif difficulty == "Medium":
-        # 可以加载不同的配置或使用不同的参数
         print("Medium mode - using game_easy with modified settings")
         from game_easy import run_game
-        run_game(display, button, difficulty="medium")
+        run_game(display, game_button, accel_monitor, difficulty="medium")
     
     elif difficulty == "Hard":
         print("Hard mode - using game_easy with hard settings")
         from game_easy import run_game
-        run_game(display, button, difficulty="hard")
+        run_game(display, game_button, accel_monitor, difficulty="hard")
     
     else:
         print("Unknown difficulty")
         time.sleep(2)
 
 def main():
-    """主程序循环"""
+    """Main program loop"""
     while True:
-        # 1. 显示开场动画
+        # 1. Intro
         show_intro()
         
-        # 2. 显示难度选择菜单
+        # 2. Menu Selection
         selected_difficulty = show_menu()
         
-        # 3. 启动对应难度的游戏
+        # 3. Start Game
         start_game(selected_difficulty)
         
-        # 游戏结束后显示结束画面
+        # Ending Screen
         end_group = displayio.Group()
         display.root_group = end_group
         end_label = label.Label(
@@ -138,19 +151,22 @@ def main():
         )
         end_group.append(end_label)
         
-        # 等待按钮按下重新开始
+        # Wait for restart
         last_button = button.value
         while True:
+            accel_monitor.update()
+            
             current_state = button.value
             if last_button and not current_state:
                 break
             last_button = current_state
             time.sleep(0.01)
         
-        time.sleep(0.3)  # 防抖
+        time.sleep(0.3)  # Debounce
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
         print("\nProgram stopped by user")
+        accel_monitor.off()
