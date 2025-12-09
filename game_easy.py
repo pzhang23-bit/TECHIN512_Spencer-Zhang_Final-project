@@ -1,4 +1,4 @@
-
+# game_easy.py - Complete English Version with NeoPixel support
 import time
 import board
 import digitalio
@@ -9,24 +9,28 @@ from adafruit_display_text import label
 import terminalio
 import json
 
-# ===== Load Level Data from JSON =====
+# Load Level Data from JSON 
 def load_levels(difficulty="easy"):
     """Load level data from levels.json file"""
     try:
-        # accronding level adding setting
-        filename = f'levels_{difficulty}.json' if difficulty != "easy" else 'levels.json'
-        try:
-            with open(filename, 'r') as f:
-                data = json.load(f)
-                return data['levels'], data['game_settings']
-        except:
-            # setting original
-            with open('levels.json', 'r') as f:
-                data = json.load(f)
-                return data['levels'], data['game_settings']
+        with open('levels.json', 'r') as f:
+            data = json.load(f)
+            levels = data['levels']
+            game_settings = data['game_settings']
+            
+            # Adjust difficulty
+            if difficulty == "medium":
+                for level in levels:
+                    for obs in level.get('obstacles', []):
+                        obs['speed'] = obs.get('speed', 1.5) * 1.3
+            elif difficulty == "hard":
+                for level in levels:
+                    for obs in level.get('obstacles', []):
+                        obs['speed'] = obs.get('speed', 1.5) * 1.6
+            
+            return levels, game_settings
     except Exception as e:
-        print(f"Error loading levels: {e}")
-        # Return default levels if file not found
+        print(f"Error loading levels.json: {e}")
         return [
             {
                 "level": 1,
@@ -41,31 +45,17 @@ def load_levels(difficulty="easy"):
             "player_x": 10
         }
 
-def run_game(display, button, difficulty="easy"):
-    """主游戏函数 - 可以被外部调用"""
+def run_game(display, button, accel_monitor=None, difficulty="easy"):
+    """Main game function - called from main.py"""
     
     LEVELS, GAME_SETTINGS = load_levels(difficulty)
     print(f"Loaded {len(LEVELS)} levels from configuration ({difficulty} mode)")
     
-    # 根据难度调整游戏参数
-    if difficulty == "medium":
-        # 中等难度：速度稍快
-        for level in LEVELS:
-            for obs in level.get('obstacles', []):
-                obs['speed'] = obs.get('speed', 1.5) * 1.3
-    elif difficulty == "hard":
-        # 困难难度：速度更快，可能有跳跃障碍物
-        for level in LEVELS:
-            for obs in level.get('obstacles', []):
-                obs['speed'] = obs.get('speed', 1.5) * 1.6
-                # 有些障碍物会跳跃
-                if len(level.get('obstacles', [])) > 1:
-                    obs['jumping'] = True
-    
+    # Create new display group
     main_group = displayio.Group()
     display.root_group = main_group
     
-    # ===== Constants / State =====
+    # Constants / State
     ground_y = GAME_SETTINGS.get('ground_y', 50)
     player_x = GAME_SETTINGS.get('player_x', 10)
     player_width = 11
@@ -75,7 +65,7 @@ def run_game(display, button, difficulty="easy"):
     obstacle_width = 12
     obstacle_height = 8
     
-    # ===== Player Star 11x11 Bitmap =====
+    # Player Star 11x11 Bitmap
     player_bitmap = displayio.Bitmap(11, 11, 2)
     palette = displayio.Palette(2)
     palette[0] = 0x000000
@@ -101,7 +91,7 @@ def run_game(display, button, difficulty="easy"):
     player_tile = displayio.TileGrid(player_bitmap, pixel_shader=palette, x=player_x, y=ground_y)
     main_group.append(player_tile)
     
-    # ===== Obstacle Bitmap =====
+    # Obstacle Bitmap
     obstacle_bitmap = displayio.Bitmap(12, 8, 2)
     
     spaceship_pattern = [
@@ -137,17 +127,19 @@ def run_game(display, button, difficulty="easy"):
             'base_y': obstacle_y
         })
     
-    # ===== Score and Game Status =====
+    # Score and Game Status
     current_level_index = 0
     obstacles_cleared = 0
     game_won = False
     
     def get_current_level():
+        """Get current level data"""
         if current_level_index >= len(LEVELS):
             return LEVELS[-1]
         return LEVELS[current_level_index]
     
     def load_level(level_data):
+        """Load level configuration"""
         nonlocal jump_height, jump_duration
         if 'jump_height' in level_data:
             jump_height = level_data['jump_height']
@@ -180,10 +172,10 @@ def run_game(display, button, difficulty="easy"):
                              color=0xFFFFFF, x=0, y=5)
     main_group.append(score_label)
     
-    game_over_label = label.Label(terminalio.FONT, text="", color=0xFFFFFF, x=15, y=32)
+    game_over_label = label.Label(terminalio.FONT, text="", color=0xFFFFFF, x=15, y=35)
     main_group.append(game_over_label)
     
-    # ===== Game State Variables =====
+    # Game State Variables 
     jumping = False
     jump_timer = 0
     game_over = False
@@ -192,11 +184,16 @@ def run_game(display, button, difficulty="easy"):
     debug = True
     print(f"=== Star Jump Game ({difficulty.upper()}) ===")
     
-    # ===== Main Loop =====
+    # Main Game Loop
     while True:
+        # Game Over Handling
         if game_over:
+            # Turn on red light on Game Over
+            if accel_monitor:
+                accel_monitor.set_red()
+            
             game_over_label.text = "GAME OVER"
-            game_over_label.x = 25
+            game_over_label.x = 38
             time.sleep(1.8)
             
             game_over_label.text = "click to restart"
@@ -204,29 +201,37 @@ def run_game(display, button, difficulty="easy"):
             time.sleep(1)
             
             if not button.value:
+                # Clear red light when restarting
+                if accel_monitor:
+                    accel_monitor.clear_override()
+                
                 game_over = False
                 game_won = False
                 obstacles_cleared = 0
+                
                 level_data = get_current_level()
                 load_level(level_data)
+                
                 game_over_label.text = ""
                 score_label.text = f"Lv{level_data['level']}:{level_data['name']}"
+                
                 print("Restarting CURRENT LEVEL!")
             
             time.sleep(0.1)
             continue
         
+        # Level Complete Handling
         if game_won:
             if current_level_index >= 9:
                 game_over_label.text = "CONGRATS!"
-                game_over_label.x = 30
+                game_over_label.x = 38
                 time.sleep(2)
                 
                 game_over_label.text = "It's the time"
                 game_over_label.x = 10
                 time.sleep(3)
                 
-                game_over_label.text = "Now, back to your world"
+                game_over_label.text = "Return to your world."
                 game_over_label.x = 0
                 time.sleep(3)
                 
@@ -235,10 +240,10 @@ def run_game(display, button, difficulty="easy"):
                 time.sleep(3)
                 
                 print("All levels finished.")
-                break  # quit and back to meau
+                break  # Exit game, return to main menu
             
             game_over_label.text = "GOOD JOB!"
-            game_over_label.x = 30
+            game_over_label.x = 38
             time.sleep(2)
             
             current_level_index += 1
@@ -253,6 +258,7 @@ def run_game(display, button, difficulty="easy"):
             time.sleep(0.5)
             continue
         
+        # Button Input
         button_pressed = not button.value
         button_just_pressed = (not prev_button_state and button_pressed)
         prev_button_state = button_pressed
@@ -263,6 +269,7 @@ def run_game(display, button, difficulty="easy"):
             if debug:
                 print("JUMP!")
         
+        # Jump Animation
         if jumping:
             progress = 1 - (jump_timer / jump_duration)
             height = jump_height * (1 - (2 * progress - 1) ** 2)
@@ -273,6 +280,7 @@ def run_game(display, button, difficulty="easy"):
                 jumping = False
                 player_tile.y = ground_y
         
+        # Obstacle Movement
         level_data = get_current_level()
         active_obstacles = obstacles[:len(level_data['obstacles'])]
         
@@ -280,6 +288,7 @@ def run_game(display, button, difficulty="easy"):
             obs['x'] -= obs['speed']
             obs['tile'].x = int(obs['x'])
             
+            # Obstacle Jumping (Hard Mode)
             if obs.get('can_jump', False):
                 if not obs['jumping'] and obs['x'] < 90 and obs['x'] > 60:
                     obs['jumping'] = True
@@ -305,7 +314,9 @@ def run_game(display, button, difficulty="easy"):
                 if obstacles_cleared >= len(active_obstacles):
                     game_won = True
         
+        # Collision Detection
         collision = False
+        
         for obs in active_obstacles:
             player_left = player_x + 3
             player_right = player_x + player_width - 3
@@ -328,21 +339,21 @@ def run_game(display, button, difficulty="easy"):
         
         time.sleep(0.03)
 
-# straigth to game_easy.py，test
+# For standalone testing
 if __name__ == "__main__":
     import board
-    import digitalio
     import busio
     import displayio
     import i2cdisplaybus
     import adafruit_displayio_ssd1306
+    import digitalio
     
     displayio.release_displays()
     i2c_bus = board.I2C()
     display_bus = i2cdisplaybus.I2CDisplayBus(i2c_bus, device_address=0x3c)
     display = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
     
-    button = digitalio.DigitalInOut(board.D0)
+    button = digitalio.DigitalInOut(board.D1)
     button.direction = digitalio.Direction.INPUT
     button.pull = digitalio.Pull.UP
     
