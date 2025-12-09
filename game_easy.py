@@ -1,4 +1,4 @@
-# game_easy.py - Complete English Version with NeoPixel support
+# game_easy.py 
 import time
 import board
 import digitalio
